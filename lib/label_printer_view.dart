@@ -12,6 +12,7 @@ class _LabelPrinterViewState extends State<LabelPrinterView> {
   final _formKey = GlobalKey<FormState>();
   final _templatePathController = TextEditingController(text: r'C:\Path\To\Your\Template.btw');
   final _printerNameController = TextEditingController(text: 'MyLabelPrinter');
+  final _copiesController = TextEditingController(text: '1');
   final _productNameController = TextEditingController(text: 'Flutter Widget');
   final _productIdController = TextEditingController(text: '12345-ABC');
   final _priceController = TextEditingController(text: '19.99');
@@ -28,13 +29,15 @@ class _LabelPrinterViewState extends State<LabelPrinterView> {
 
       try {
         final bartenderService = BartenderService();
+        final copies = int.parse(_copiesController.text);
+
         bartenderService.init();
         bartenderService.open(_templatePathController.text);
         bartenderService.setPrinter(_printerNameController.text);
         bartenderService.setVariable('ProductName', _productNameController.text);
         bartenderService.setVariable('ProductID', _productIdController.text);
         bartenderService.setVariable('Price', _priceController.text);
-        bartenderService.printLabel();
+        bartenderService.printLabel(copies: copies);
         bartenderService.close();
 
         setState(() {
@@ -80,6 +83,21 @@ class _LabelPrinterViewState extends State<LabelPrinterView> {
                       controller: _printerNameController,
                       decoration: const InputDecoration(labelText: 'Printer Name'),
                       validator: (value) => value!.isEmpty ? 'Please enter a printer name' : null,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _copiesController,
+                      decoration: const InputDecoration(labelText: 'Number of Copies'),
+                      keyboardType: TextInputType.number,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter number of copies';
+                        }
+                        if (int.tryParse(value) == null || int.parse(value) < 1) {
+                          return 'Please enter a valid number';
+                        }
+                        return null;
+                      },
                     ),
                   ],
                 ),

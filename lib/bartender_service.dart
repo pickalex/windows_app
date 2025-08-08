@@ -128,15 +128,30 @@ class BartenderService {
     }
   }
 
-  void printLabel() {
+  void printLabel({int copies = 1}) {
     final dispatch = IDispatch(_btFormat);
-    final printOut = dispatch.vtable.elementAt(16).cast<
-        Pointer<
-            NativeFunction<
-                Int32 Function(Pointer, Pointer<Utf16>, Int32)>>>().value;
-
     try {
-      final hr = printOut(_btFormat.cast(), ''.toNativeUtf16(), 0);
+      // Set the number of identical copies to print.
+      // This corresponds to the 'Identical Copies of Label' setting in BarTender.
+      // The v-table index for put_IdenticalCopiesOfLabel is 24.
+      final setCopies = dispatch.vtable.elementAt(24).cast<
+          Pointer<
+              NativeFunction<
+                  Int32 Function(Pointer, Int32)>>>().value;
+
+      var hr = setCopies(_btFormat.cast(), copies);
+      if (FAILED(hr)) {
+          throw Exception('Failed to set number of copies: $hr');
+      }
+
+      // Call the PrintOut method.
+      // The v-table index for PrintOut is 16.
+      final printOut = dispatch.vtable.elementAt(16).cast<
+          Pointer<
+              NativeFunction<
+                  Int32 Function(Pointer, Pointer<Utf16>, Int32)>>>().value;
+
+      hr = printOut(_btFormat.cast(), ''.toNativeUtf16(), 0);
       if (FAILED(hr)) {
         throw Exception('Failed to print: $hr');
       }

@@ -26,9 +26,9 @@ void main() {
     bartenderService.setVariable('Price', '19.99');
     print('Variables set.');
 
-    // 5. Print the label
-    bartenderService.printLabel();
-    print('Label sent to printer.');
+    // 5. Print the label (3 copies)
+    bartenderService.printLabel(copies: 3);
+    print('Label (3 copies) sent to printer.');
 
   } catch (e) {
     print('An error occurred: $e');
