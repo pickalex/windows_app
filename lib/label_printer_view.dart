@@ -18,41 +18,53 @@ class _LabelPrinterViewState extends State<LabelPrinterView> {
   final _priceController = TextEditingController(text: '19.99');
 
   String _statusMessage = '';
-  bool _isPrinting = false;
+  bool _isBusy = false;
+
+  Future<void> _interactWithBarTender(Function(BartenderService) action) async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isBusy = true;
+      _statusMessage = 'Communicating with BarTender...';
+    });
+
+    try {
+      final bartenderService = BartenderService();
+      bartenderService.init();
+      bartenderService.open(_templatePathController.text);
+      bartenderService.setPrinter(_printerNameController.text);
+      bartenderService.setVariable('ProductName', _productNameController.text);
+      bartenderService.setVariable('ProductID', _productIdController.text);
+      bartenderService.setVariable('Price', _priceController.text);
+
+      action(bartenderService);
+
+      bartenderService.close();
+      setState(() {
+        _statusMessage = 'Action completed successfully!';
+      });
+    } catch (e) {
+      setState(() {
+        _statusMessage = 'Error: $e';
+      });
+    } finally {
+      setState(() {
+        _isBusy = false;
+      });
+    }
+  }
 
   Future<void> _printLabel() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isPrinting = true;
-        _statusMessage = 'Printing...';
-      });
+    final copies = int.parse(_copiesController.text);
+    await _interactWithBarTender((service) {
+      service.printLabel(copies: copies);
+    });
+  }
 
-      try {
-        final bartenderService = BartenderService();
-        final copies = int.parse(_copiesController.text);
-
-        bartenderService.init();
-        bartenderService.open(_templatePathController.text);
-        bartenderService.setPrinter(_printerNameController.text);
-        bartenderService.setVariable('ProductName', _productNameController.text);
-        bartenderService.setVariable('ProductID', _productIdController.text);
-        bartenderService.setVariable('Price', _priceController.text);
-        bartenderService.printLabel(copies: copies);
-        bartenderService.close();
-
-        setState(() {
-          _statusMessage = 'Print job sent successfully!';
-        });
-      } catch (e) {
-        setState(() {
-          _statusMessage = 'Error: $e';
-        });
-      } finally {
-        setState(() {
-          _isPrinting = false;
-        });
-      }
-    }
+  Future<void> _showPreview() async {
+    await _interactWithBarTender((service) {
+      service.showPreviewDialog();
+    });
   }
 
   @override
@@ -122,21 +134,40 @@ class _LabelPrinterViewState extends State<LabelPrinterView> {
                   ],
                 ),
                 const SizedBox(height: 32),
-                ElevatedButton.icon(
-                  onPressed: _isPrinting ? null : _printLabel,
-                  icon: _isPrinting
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Icon(Icons.print),
-                  label: Text(_isPrinting ? 'PRINTING...' : 'PRINT LABEL'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: Colors.blueAccent,
-                    textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _isBusy ? null : _showPreview,
+                        icon: const Icon(Icons.visibility),
+                        label: const Text('PREVIEW'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          backgroundColor: Colors.grey[600],
+                          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _isBusy ? null : _printLabel,
+                        icon: _isBusy
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Icon(Icons.print),
+                        label: Text(_isBusy ? 'BUSY...' : 'PRINT LABEL'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          backgroundColor: Colors.blueAccent,
+                          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 24),
                 if (_statusMessage.isNotEmpty)

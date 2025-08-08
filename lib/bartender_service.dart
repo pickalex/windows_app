@@ -160,6 +160,44 @@ class BartenderService {
     }
   }
 
+  void showPreviewDialog() {
+    final dispatch = IDispatch(_btFormat);
+    try {
+      final methodName = 'ShowPrintDialog'.toNativeUtf16();
+      final dispId = calloc<Int32>();
+
+      try {
+        var hr = dispatch.GetIDsOfNames(
+            IID_NULL,
+            [methodName].toPointerArray(),
+            1,
+            LOCALE_USER_DEFAULT,
+            dispId);
+
+        if (FAILED(hr)) {
+          throw Exception('Failed to get DispID for ShowPrintDialog: $hr');
+        }
+
+        final params = calloc<DISPPARAMS>();
+        // No arguments for ShowPrintDialog
+        params.ref.cArgs = 0;
+        params.ref.cNamedArgs = 0;
+
+        hr = dispatch.Invoke(dispId.value, IID_NULL, LOCALE_USER_DEFAULT,
+            DISPATCH_METHOD, params, nullptr, nullptr, nullptr);
+
+        if (FAILED(hr)) {
+          throw Exception('Failed to invoke ShowPrintDialog: $hr');
+        }
+      } finally {
+        free(methodName);
+        free(dispId);
+      }
+    } finally {
+      dispatch.Release();
+    }
+  }
+
   void close() {
     if (_btFormat != null) {
       final dispatch = IDispatch(_btFormat);
