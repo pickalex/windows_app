@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'player_screen.dart';
+import 'mock_data.dart';
+import 'video_model.dart';
+import 'embedded_player.dart';
 
 void main() {
   runApp(const VideoApp());
@@ -11,158 +13,154 @@ class VideoApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Video Player Study',
+      title: 'Video Player Source Switcher',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        primarySwatch: Colors.indigo,
         useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xFFF5F5F5),
       ),
-      home: const HomePage(),
+      home: const VideoDetailPage(),
     );
   }
 }
 
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+class VideoDetailPage extends StatefulWidget {
+  const VideoDetailPage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<VideoDetailPage> createState() => _VideoDetailPageState();
 }
 
-class _HomePageState extends State<HomePage> {
-  final TextEditingController _urlController = TextEditingController();
+class _VideoDetailPageState extends State<VideoDetailPage> {
+  // Current video being displayed
+  final VideoItem _video = mockVideoData;
 
-  // Sample video sources from public testing lists
-  final Map<String, String> _videoSources = {
-    'Big Buck Bunny (MP4)':
-        'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-    'Elephant Dream (MP4)':
-        'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-    'Sintel (MP4)':
-        'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
-    'Tears of Steel (MP4)':
-        'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
-    'Subaru Outback (MP4)':
-        'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4',
-    'Apple HLS Test (M3U8)':
-        'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8',
-  };
+  // Currently selected source index
+  int _selectedSourceIndex = 0;
 
-  String? _selectedSourceKey;
-
-  @override
-  void initState() {
-    super.initState();
-    // Default to the first source
-    _selectedSourceKey = _videoSources.keys.first;
-    _urlController.text = _videoSources.values.first;
-  }
-
-  @override
-  void dispose() {
-    _urlController.dispose();
-    super.dispose();
-  }
-
-  void _playVideo() {
-    final url = _urlController.text.trim();
-    if (url.isNotEmpty) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => PlayerScreen(videoUrl: url),
+  void _switchSource(int index) {
+    if (index != _selectedSourceIndex) {
+      setState(() {
+        _selectedSourceIndex = index;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Switched to ${_video.sources[index].name}'),
+          duration: const Duration(seconds: 1),
         ),
       );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid URL')),
-      );
     }
-  }
-
-  void _onSourceChanged(String? newValue) {
-    setState(() {
-      _selectedSourceKey = newValue;
-      if (newValue != null) {
-        _urlController.text = _videoSources[newValue]!;
-      }
-    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Online Video Player'),
+        title: const Text('Movie Details'),
+        centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Select a Sample Video Source:',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            DropdownButtonFormField<String>(
-              value: _selectedSourceKey,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. Video Player Area
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: Container(
+              color: Colors.black,
+              // We pass the key based on the URL to force the widget to rebuild
+              // completely when the source changes. This is the simplest way to
+              // handle source switching for this demo.
+              child: EmbeddedPlayer(
+                key: ValueKey(_video.sources[_selectedSourceIndex].url),
+                videoUrl: _video.sources[_selectedSourceIndex].url,
               ),
-              items: _videoSources.keys.map((String key) {
-                return DropdownMenuItem<String>(
-                  value: key,
-                  child: Text(
-                    key,
-                    overflow: TextOverflow.ellipsis,
+            ),
+          ),
+
+          // 2. Info & Source Selection Area
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(16.0),
+              children: [
+                // Title
+                Text(
+                  _video.title,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
                   ),
-                );
-              }).toList(),
-              onChanged: _onSourceChanged,
+                ),
+                const SizedBox(height: 8),
+
+                // Description
+                Text(
+                  _video.description,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[700],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // "Switch Source" Section
+                const Text(
+                  'Select Source / Line:',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                Wrap(
+                  spacing: 10.0,
+                  runSpacing: 10.0,
+                  children: List.generate(_video.sources.length, (index) {
+                    final source = _video.sources[index];
+                    final isSelected = index == _selectedSourceIndex;
+
+                    return ChoiceChip(
+                      label: Text(source.name),
+                      selected: isSelected,
+                      onSelected: (bool selected) {
+                        if (selected) {
+                          _switchSource(index);
+                        }
+                      },
+                      selectedColor: Colors.indigoAccent,
+                      labelStyle: TextStyle(
+                        color: isSelected ? Colors.white : Colors.black,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    );
+                  }),
+                ),
+
+                const SizedBox(height: 30),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.blue),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Tip: If one source is buffering or fails, try switching to another line.',
+                          style: TextStyle(fontSize: 12, color: Colors.blue),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              ],
             ),
-            const SizedBox(height: 20),
-            const Text(
-              'Or Enter Custom URL:',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _urlController,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: 'https://example.com/video.mp4',
-                labelText: 'Video URL',
-              ),
-              maxLines: 3,
-              minLines: 1,
-              onChanged: (value) {
-                // If user types manually, clear the dropdown selection if it doesn't match
-                if (_selectedSourceKey != null && value != _videoSources[_selectedSourceKey]) {
-                  setState(() {
-                    _selectedSourceKey = null;
-                  });
-                }
-              },
-            ),
-            const SizedBox(height: 30),
-            ElevatedButton.icon(
-              onPressed: _playVideo,
-              icon: const Icon(Icons.play_arrow),
-              label: const Text('Play Video'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                textStyle: const TextStyle(fontSize: 18),
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Supported formats: MP4, M3U8 (HLS), etc.\nNote: Ensure the URL is publicly accessible.',
-              style: TextStyle(color: Colors.grey),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
