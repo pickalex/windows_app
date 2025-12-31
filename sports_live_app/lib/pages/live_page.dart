@@ -1,5 +1,6 @@
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_barrage/flutter_barrage.dart';
 import '../utils/settings.dart';
 
 class LivePage extends StatefulWidget {
@@ -20,6 +21,9 @@ class _LivePageState extends State<LivePage> {
   late RtcEngine _engine;
   int? _remoteUid;
   bool _localUserJoined = false;
+  final BarrageWallController _barrageController = BarrageWallController();
+  final TextEditingController _textEditingController = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
 
   @override
   void initState() {
@@ -80,6 +84,8 @@ class _LivePageState extends State<LivePage> {
 
   @override
   void dispose() {
+    _textEditingController.dispose();
+    _focusNode.dispose();
     _dispose();
     super.dispose();
   }
@@ -87,6 +93,21 @@ class _LivePageState extends State<LivePage> {
   Future<void> _dispose() async {
     await _engine.leaveChannel();
     await _engine.release();
+  }
+
+  void _sendDanmu() {
+    if (_textEditingController.text.isNotEmpty) {
+      _barrageController.send([
+        Bullet(
+          child: Text(
+            _textEditingController.text,
+            style: const TextStyle(color: Colors.white, fontSize: 20),
+          ),
+        ),
+      ]);
+      _textEditingController.clear();
+      _focusNode.unfocus();
+    }
   }
 
   @override
@@ -103,8 +124,54 @@ class _LivePageState extends State<LivePage> {
           )
         ],
       ),
-      body: Center(
-        child: _renderVideo(),
+      body: Stack(
+        children: [
+          // 1. Video Layer
+          Positioned.fill(
+            child: _renderVideo(),
+          ),
+
+          // 2. Danmu (Barrage) Layer
+          Positioned.fill(
+            child: BarrageWall(
+              debug: false,
+              safeBottomHeight: 60, // Leave space for input bar
+              speed: 5,
+              controller: _barrageController,
+              child: Container(), // Empty container as we overlay on video
+            ),
+          ),
+
+          // 3. Input Layer
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              color: Colors.black54,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _textEditingController,
+                      focusNode: _focusNode,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        hintText: 'Say something...',
+                        hintStyle: TextStyle(color: Colors.white70),
+                        border: InputBorder.none,
+                      ),
+                      onSubmitted: (_) => _sendDanmu(),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.send, color: Colors.blue),
+                    onPressed: _sendDanmu,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

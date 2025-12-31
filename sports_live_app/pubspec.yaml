@@ -12,6 +12,7 @@ dependencies:
   agora_rtc_engine: ^6.3.0
   permission_handler: ^11.0.0
   cupertino_icons: ^1.0.6
+  flutter_barrage: ^0.5.5
 
 dev_dependencies:
   flutter_test:
